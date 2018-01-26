@@ -1,4 +1,3 @@
-import array
 import collections
 import logging
 import socket
@@ -56,8 +55,8 @@ class GearmanConnection(object):
         self._is_server_side = None
 
         # Reset all our raw data buffers
-        self._incoming_buffer = array.array('c')
-        self._outgoing_buffer = ''
+        self._incoming_buffer = b''
+        self._outgoing_buffer = b''
 
         # Toss all commands we may have sent or received
         self._incoming_commands = collections.deque()
@@ -115,7 +114,7 @@ class GearmanConnection(object):
                                                 ssl_version=ssl.PROTOCOL_TLSv1)
 
             client_socket.connect((self.gearman_host, self.gearman_port))
-        except socket.error, socket_exception:
+        except socket.error as socket_exception:
             self.throw_exception(exception=socket_exception)
 
         self.set_socket(client_socket)
@@ -172,7 +171,7 @@ class GearmanConnection(object):
                     continue
                 else:
                     self.throw_exception(exception=e)
-            except socket.error, socket_exception:
+            except socket.error as socket_exception:
                 self.throw_exception(exception=socket_exception)
 
             if len(recv_buffer) == 0:
@@ -186,7 +185,7 @@ class GearmanConnection(object):
                 recv_buffer += self.gearman_socket.recv(remaining)
                 remaining = self.gearman_socket.pending()
 
-        self._incoming_buffer.fromstring(recv_buffer)
+        self._incoming_buffer += recv_buffer
         return len(self._incoming_buffer)
 
     def _unpack_command(self, given_buffer):
@@ -197,7 +196,7 @@ class GearmanConnection(object):
             cmd_type = None
             cmd_args = None
             cmd_len = 0
-        elif given_buffer[0] == NULL_CHAR:
+        elif given_buffer.startswith(NULL_CHAR.encode()):
             # We'll be expecting a response if we know we're a client side command
             is_response = bool(self._is_client_side)
             cmd_type, cmd_args, cmd_len = parse_binary_command(given_buffer, is_response=is_response)
@@ -218,13 +217,16 @@ class GearmanConnection(object):
         if not self._outgoing_commands:
             return
 
-        packed_data = [self._outgoing_buffer]
+        packed_data = bytearray()
+        packed_data += self._outgoing_buffer
         while self._outgoing_commands:
             cmd_type, cmd_args = self._outgoing_commands.popleft()
             packed_command = self._pack_command(cmd_type, cmd_args)
-            packed_data.append(packed_command)
+            if isinstance(packed_command, str):
+              packed_command = packed_command.encode()
+            packed_data += packed_command
 
-        self._outgoing_buffer = ''.join(packed_data)
+        self._outgoing_buffer = bytes(packed_data)
 
     def send_data_to_socket(self):
         """Send data from buffer -> socket
@@ -247,7 +249,7 @@ class GearmanConnection(object):
                     continue
                 else:
                     self.throw_exception(exception=e)
-            except socket.error, socket_exception:
+            except socket.error as socket_exception:
                 self.throw_exception(exception=socket_exception)
 
             if bytes_sent == 0:

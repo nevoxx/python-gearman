@@ -43,7 +43,7 @@ class MockGearmanConnection(GearmanConnection):
 
 class MockGearmanConnectionManager(GearmanConnectionManager):
     """Handy mock client base to test Worker/Client/Abstract ClientBases"""
-    def poll_connections_once(self, poller, connection_map, timeout=None):
+    def poll_connections_once(self, poller, timeout=None):
         return set(), set(), set()
 
     def _register_connections_with_poller(self, connections, poller):

@@ -3,7 +3,7 @@ from gearman import compat
 import logging
 import os
 import random
-import weakref
+import binascii
 
 import gearman.util
 
@@ -14,7 +14,7 @@ from gearman.errors import ConnectionError, ExceededConnectionAttempts, ServerUn
 
 gearman_logger = logging.getLogger(__name__)
 
-# This number must be <= GEARMAN_UNIQUE_SIZE in gearman/libgearman/constants.h
+# This number must be <= GEARMAN_UNIQUE_SIZE in gearman/libgearman/constants.h 
 RANDOM_UNIQUE_BYTES = 16
 
 class GearmanClient(GearmanConnectionManager):
@@ -30,7 +30,7 @@ class GearmanClient(GearmanConnectionManager):
 
         # The authoritative copy of all requests that this client knows about
         # Ignores the fact if a request has been bound to a connection or not
-        self.request_to_rotating_connection_queue = weakref.WeakKeyDictionary(compat.defaultdict(collections.deque))
+        self.request_to_rotating_connection_queue = compat.defaultdict(collections.deque)
 
     def submit_job(self, task, data, unique=None, priority=PRIORITY_NONE, background=False, wait_until_complete=True, max_retries=0, poll_timeout=None):
         """Submit a single job to any gearman server"""
@@ -69,6 +69,11 @@ class GearmanClient(GearmanConnectionManager):
         time_remaining = stopwatch.get_time_remaining()
         if wait_until_complete and bool(time_remaining != 0.0):
             processed_requests = self.wait_until_jobs_completed(processed_requests, poll_timeout=time_remaining)
+        else:
+            # Remove jobs from the rotating connection queue to avoid a leak
+            for current_request in processed_requests:
+                self.request_to_rotating_connection_queue.pop(current_request, None)
+
 
         return processed_requests
 
@@ -168,8 +173,10 @@ class GearmanClient(GearmanConnectionManager):
         """Takes a dictionary with fields  {'task': task, 'unique': unique, 'data': data, 'priority': priority, 'background': background}"""
         # Make sure we have a unique identifier for ALL our tasks
         job_unique = job_info.get('unique')
-        if not job_unique:
-            job_unique = os.urandom(self.random_unique_bytes).encode('hex')
+        if job_unique == '-':
+            job_unique = job_info['data']
+        elif not job_unique:
+            job_unique = binascii.hexlify(os.urandom(self.random_unique_bytes)).decode('utf-8')
 
         current_job = self.job_class(connection=None, handle=None, task=job_info['task'], unique=job_unique, data=job_info['data'])
 

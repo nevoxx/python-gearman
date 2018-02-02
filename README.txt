@@ -2,7 +2,7 @@
 python3-gearman
 ===============
 
-This is a fork of the Python 2.x Gearman extension and that been modified to work with Python 3.
+This is a fork of the Python 2.x Gearman extension that has been modified to work with Python 3.
 
 Description
 ===========

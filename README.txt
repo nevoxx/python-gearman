@@ -1,17 +1,14 @@
-==============
-python-gearman
-==============
+===============
+python3-gearman
+===============
+
+This is a fork of the Python 2.x Gearman extension that has been modified to work with Python 3.
 
 Description
 ===========
 Python Gearman API - Client, worker, and admin client interfaces
 
 For information on Gearman and a C-based Gearman server, see http://www.gearman.org/
-
-Installation
-============
-* easy_install gearman
-* pip install gearman
 
 Links
 =====
